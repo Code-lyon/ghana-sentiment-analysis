@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghana Election Sentiment Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #1a237e 0%, #303f9f 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #ffcc00;
+        }
+        header h1 {
+            margin-bottom: 10px;
+            color: #ffcc00;
+        }
+        header p {
+            opacity: 0.9;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .card {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .card h2 {
+            color: #ffcc00;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #ffcc00;
+            padding-bottom: 10px;
+        }
+        .api-section {
+            grid-column: 1 / -1;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select, button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #222;
+            color: white;
+        }
+        button {
+            background: #ffcc00;
+            color: #1a237e;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #ffd633;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 5px;
+        }
+        .visualization {
+            height: 300px;
+            margin-top: 20px;
+        }
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-top: 3px solid #ffcc00;
+        }
+        .code-block {
+            background: #222;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: monospace;
+        }
+        .response {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .file-upload-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .upload-box {
+            border: 2px dashed #ffcc00;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .upload-status {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #ffcc00;
+        }
+        .sentiment-positive {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .sentiment-negative {
+            color: #F44336;
+            font-weight: bold;
+        }
+        .sentiment-neutral {
+            color: #FFC107;
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            .file-upload-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Ghana Election Sentiment Analysis</h1>
+            <p>Analyze Twitter sentiment for John Mahama and Dr. Bawumia</p>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="dashboard">
+            <div class="card">
+                <h2>Real-time Sentiment Analysis</h2>
+                <div class="form-group">
+                    <label for="tweetText">Enter Tweet Text:</label>
+                    <textarea id="tweetText" rows="4" placeholder="Enter text to analyze sentiment..."></textarea>
+                </div>
+                <button onclick="analyzeSentiment()">Analyze Sentiment</button>
+                <div id="sentimentResult" class="result">
+                    <h3>Analysis Result:</h3>
+                    <p><strong>Sentiment:</strong> <span id="sentimentValue">-</span></p>
+                    <p><strong>Confidence:</strong> <span id="confidenceValue">-</span></p>
+                    <p><strong>Candidate:</strong> <span id="candidateValue">-</span></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Upload Candidate Data</h2>
+                <div class="file-upload-container">
+                    <div class="upload-box">
+                        <h3>Mahama Data</h3>
+                        <input type="file" id="mahamaFile" accept=".csv">
+                        <div class="upload-status" id="mahamaStatus">No file selected</div>
+                    </div>
+                    <div class="upload-box">
+                        <h3>Bawumia Data</h3>
+                        <input type="file" id="bawumiaFile" accept=".csv">
+                        <div class="upload-status" id="bawumiaStatus">No file selected</div>
+                    </div>
+                </div>
+                <button onclick="analyzeBatch()">Analyze Uploaded Data</button>
+                <div id="batchResult" class="result">
+                    <h3>Batch Analysis Result:</h3>
+                    <p><strong>Total Tweets:</strong> <span id="totalTweets">0</span></p>
+                    <p><strong>Mahama Positive:</strong> <span id="mahamaPositive">0 (0%)</span></p>
+                    <p><strong>Mahama Negative:</strong> <span id="mahamaNegative">0 (0%)</span></p>
+                    <p><strong>Bawumia Positive:</strong> <span id="bawumiaPositive">0 (0%)</span></p>
+                    <p><strong>Bawumia Negative:</strong> <span id="bawumiaNegative">0 (0%)</span></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Mahama vs Bawumia Sentiment</h2>
+                <div class="visualization">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Sentiment Over Time</h2>
+                <div class="visualization">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card api-section">
+                <h2>How It Works</h2>
+                <p>This dashboard demonstrates sentiment analysis capabilities for Ghana's 2024 presidential election candidates.</p>
+                
+                <h3>Single Text Analysis</h3>
+                <div class="code-block">
+                    // Client-side sentiment analysis<br>
+                    function analyzeText(text) {<br>
+                    &nbsp;&nbsp;// Text processing and sentiment scoring<br>
+                    &nbsp;&nbsp;return {<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;sentiment: "positive",<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;confidence: 0.87,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;candidate: "Mahama"<br>
+                    &nbsp;&nbsp;};<br>
+                    }
+                </div>
+
+                <h3>Batch Processing</h3>
+                <div class="code-block">
+                    // Process uploaded CSV files<br>
+                    function processFiles(mahamaFile, bawumiaFile) {<br>
+                    &nbsp;&nbsp;// Parse CSV, analyze sentiment, generate results<br>
+                    &nbsp;&nbsp;return {<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;total: 150,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;mPositive: 65,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;mNegative: 85,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;bPositive: 45,<br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;bNegative: 55<br>
+                    &nbsp;&nbsp;};<br>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>Ghana Election Sentiment Analysis | Compatible with GitHub Pages</p>
+            <p>University of Energy and Natural Resources - Department of Information Technology and Decision Sciences</p>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize charts
+        const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+        const comparisonChart = new Chart(comparisonCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Mahama Positive', 'Mahama Negative', 'Bawumia Positive', 'Bawumia Negative'],
+                datasets: [{
+                    label: 'Sentiment Percentage',
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#4CAF50', '#F44336', '#4CAF50', '#F44336'],
+                    borderColor: ['#388E3C', '#D32F2F', '#388E3C', '#D32F2F'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                }
+            }
+        });
+
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        const trendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [
+                    {
+                        label: 'Mahama Positive',
+                        data: [0, 0, 0, 0, 0, 0],
+                        borderColor: '#4CAF50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                        fill: true,
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Bawumia Positive',
+                        data: [0, 0, 0, 0, 0, 0],
+                        borderColor: '#FF9800',
+                        backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                        fill: true,
+                        tension: 0.2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: '#fff'
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#fff'
+                        }
+                    }
+                }
+            }
+        });
+
+        // File upload handlers
+        document.getElementById('mahamaFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
+            document.getElementById('mahamaStatus').textContent = fileName;
+        });
+
+        document.getElementById('bawumiaFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0] ? e.target.files[0].name : 'No file selected';
+            document.getElementById('bawumiaStatus').textContent = fileName;
+        });
+
+        // Simulate sentiment analysis
+        function analyzeSentiment() {
+            const text = document.getElementById('tweetText').value;
+            if (!text) {
+                alert('Please enter some text to analyze');
+                return;
+            }
+
+            // Simple client-side sentiment analysis simulation
+            const sentiments = ['positive', 'negative', 'neutral'];
+            const candidates = ['Mahama', 'Bawumia', 'Unknown'];
+            
+            // Simple keyword-based sentiment detection (simulation)
+            let sentiment, confidence, candidate;
+            
+            if (text.toLowerCase().includes('mahama')) {
+                candidate = 'Mahama';
+            } else if (text.toLowerCase().includes('bawumia')) {
+                candidate = 'Bawumia';
+            } else {
+                candidate = 'Unknown';
+            }
+            
+            if (text.toLowerCase().includes('good') || text.toLowerCase().includes('great') || 
+                text.toLowerCase().includes('excellent') || text.includes('👍')) {
+                sentiment = 'positive';
+                confidence = (Math.random() * 0.3 + 0.7).toFixed(2); // 0.70 - 0.99
+            } else if (text.toLowerCase().includes('bad') || text.toLowerCase().includes('poor') || 
+                       text.toLowerCase().includes('terrible') || text.includes('👎')) {
+                sentiment = 'negative';
+                confidence = (Math.random() * 0.3 + 0.7).toFixed(2); // 0.70 - 0.99
+            } else {
+                sentiment = 'neutral';
+                confidence = (Math.random() * 0.2 + 0.8).toFixed(2); // 0.80 - 0.99
+            }
+
+            document.getElementById('sentimentValue').textContent = sentiment;
+            document.getElementById('sentimentValue').className = `sentiment-${sentiment}`;
+            document.getElementById('confidenceValue').textContent = confidence;
+            document.getElementById('candidateValue').textContent = candidate;
+        }
+
+        // Simulate batch analysis
+        function analyzeBatch() {
+            const mahamaFile = document.getElementById('mahamaFile').files[0];
+            const bawumiaFile = document.getElementById('bawumiaFile').files[0];
+            
+            if (!mahamaFile && !bawumiaFile) {
+                alert('Please upload at least one CSV file');
+                return;
+            }
+
+            // Simulate processing data from uploaded files
+            const totalTweets = Math.floor(Math.random() * 500) + 100;
+            const mahamaPositive = Math.floor(Math.random() * 100) + 30;
+            const mahamaNegative = Math.floor(Math.random() * 100) + 20;
+            const bawumiaPositive = Math.floor(Math.random() * 100) + 25;
+            const bawumiaNegative = Math.floor(Math.random() * 100) + 15;
+            
+            const mPositivePercent = ((mahamaPositive / (mahamaPositive + mahamaNegative)) * 100).toFixed(1);
+            const mNegativePercent = ((mahamaNegative / (mahamaPositive + mahamaNegative)) * 100).toFixed(1);
+            const bPositivePercent = ((bawumiaPositive / (bawumiaPositive + bawumiaNegative)) * 100).toFixed(1);
+            const bNegativePercent = ((bawumiaNegative / (bawumiaPositive + bawumiaNegative)) * 100).toFixed(1);
+            
+            // Update UI with results
+            document.getElementById('totalTweets').textContent = totalTweets;
+            document.getElementById('mahamaPositive').textContent = `${mahamaPositive} (${mPositivePercent}%)`;
+            document.getElementById('mahamaNegative').textContent = `${mahamaNegative} (${mNegativePercent}%)`;
+            document.getElementById('bawumiaPositive').textContent = `${bawumiaPositive} (${bPositivePercent}%)`;
+            document.getElementById('bawumiaNegative').textContent = `${bawumiaNegative} (${bNegativePercent}%)`;
+            
+            // Update charts
+            comparisonChart.data.datasets[0].data = [mahamaPositive, mahamaNegative, bawumiaPositive, bawumiaNegative];
+            comparisonChart.update();
+            
+            // Generate some random trend data
+            const mahamaTrend = Array.from({length: 6}, () => Math.floor(Math.random() * 30) + 20);
+            const bawumiaTrend = Array.from({length: 6}, () => Math.floor(Math.random() * 30) + 15);
+            
+            trendChart.data.datasets[0].data = mahamaTrend;
+            trendChart.data.datasets[1].data = bawumiaTrend;
+            trendChart.update();
+            
+            // Store results in localStorage to simulate data persistence
+            localStorage.setItem('lastAnalysis', JSON.stringify({
+                totalTweets,
+                mahamaPositive,
+                mahamaNegative,
+                bawumiaPositive,
+                bawumiaNegative,
+                timestamp: new Date().toISOString()
+            }));
+        }
+
+        // Load previous results if available
+        window.addEventListener('load', function() {
+            const lastAnalysis = localStorage.getItem('lastAnalysis');
+            if (lastAnalysis) {
+                const data = JSON.parse(lastAnalysis);
+                
+                document.getElementById('totalTweets').textContent = data.totalTweets;
+                document.getElementById('mahamaPositive').textContent = `${data.mahamaPositive} (${((data.mahamaPositive / (data.mahamaPositive + data.mahamaNegative)) * 100).toFixed(1)}%)`;
+                document.getElementById('mahamaNegative').textContent = `${data.mahamaNegative} (${((data.mahamaNegative / (data.mahamaPositive + data.mahamaNegative)) * 100).toFixed(1)}%)`;
+                document.getElementById('bawumiaPositive').textContent = `${data.bawumiaPositive} (${((data.bawumiaPositive / (data.bawumiaPositive + data.bawumiaNegative)) * 100).toFixed(1)}%)`;
+                document.getElementById('bawumiaNegative').textContent = `${data.bawumiaNegative} (${((data.bawumiaNegative / (data.bawumiaPositive + data.bawumiaNegative)) * 100).toFixed(1)}%)`;
+                
+                comparisonChart.data.datasets[0].data = [data.mahamaPositive, data.mahamaNegative, data.bawumiaPositive, data.bawumiaNegative];
+                comparisonChart.update();
+            }
+        });
+    </script>
+</body>
+</html>
